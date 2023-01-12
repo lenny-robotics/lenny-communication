@@ -1,0 +1,5 @@
+add_subdirectory(TCPTest)
+add_subdirectory(UDPTest)
+if (LENNY_COMMUNICATION_USE_WEBRTC)
+    add_subdirectory(WebRTCTest)
+endif ()

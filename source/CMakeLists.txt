@@ -1,0 +1,6 @@
+if(${LENNY_PROJECT}_BUILD_APPS)
+	add_subdirectory(apps)
+endif()
+if(NOT TARGET lenny::communication)
+	add_subdirectory(communication)
+endif()
