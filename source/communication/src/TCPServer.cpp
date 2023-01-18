@@ -14,7 +14,7 @@ namespace lenny::communication {
 
 TCPServer::TCPServer(const int &port) : port(port) {
     //Set f_messageFromClient as test function
-    f_messageFromClient = [](std::string &response, const std::string &message) -> void {
+    f_messageFromClient = [](std::optional<std::string> &response, const std::string &message) -> void {
         response = message;  //Echo message
     };
 }
@@ -41,27 +41,27 @@ bool TCPServer::open() {
     //Initialize Winsock
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != NO_ERROR) {
-        LENNY_LOG_WARNING("Winsock initialization failed");
+        LENNY_LOG_WARNING("Winsock initialization failed")
         return false;
     }
 #endif
 
     //Create socket
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        LENNY_LOG_WARNING("Socket creation failed");
+        LENNY_LOG_WARNING("Socket creation failed")
         return false;
     }
 
     //Bind socket
     struct sockaddr_in address = getAddress(port);
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        LENNY_LOG_WARNING("Socket binding failed");
+        LENNY_LOG_WARNING("Socket binding failed")
         return false;
     }
 
     //Prepare to accept connections
     if (listen(server_fd, 3) < 0) {
-        LENNY_LOG_WARNING("Preparation to accept connections failed");
+        LENNY_LOG_WARNING("Preparation to accept connections failed")
         return false;
     }
 
@@ -114,9 +114,9 @@ void TCPServer::loop() {
     while (opened) {
         //Establish client connection
         if (!isClientConnected()) {
-            LENNY_LOG_DEBUG("Waiting for client to connect...");
+            LENNY_LOG_DEBUG("Waiting for client to connect...")
             if ((socket_fd = accept(server_fd, (struct sockaddr *)&address, &addrlen)) >= 0) {
-                LENNY_LOG_DEBUG("Client connected");
+                LENNY_LOG_DEBUG("Client connected")
                 clientConnected = true;
             }
         } else {  //Exchange messages
@@ -126,32 +126,35 @@ void TCPServer::loop() {
             if (m_len > 0) {
                 const std::string message(std::string(m_buff).substr(0, m_len));
                 if (Utils::TCP_PRINT_MESSAGES)
-                    LENNY_LOG_PRINT(tools::Logger::MAGENTA, "SERVER (received from client): `%s`\n", message.c_str());
-                std::string response = "";
+                    LENNY_LOG_PRINT(tools::Logger::MAGENTA, "SERVER (received from client): `%s`\n", message.c_str())
 
-                //Check if connection is closing
+                //Parse message and setup response
+                std::optional<std::string> response = std::nullopt;
                 if (message == Utils::TCP_CLIENT_CLOSE_MESSAGE) {
-                    LENNY_LOG_DEBUG("Client is closing...");
-                    response = message;  //Echo message
+                    LENNY_LOG_DEBUG("Client is closing...")
                     clientConnected = false;
                 } else if (f_messageFromClient) {  //If not handle message in a customized way
                     f_messageFromClient(response, message);
                 }
 
-                //Send response to client
-                if (response.size() > Utils::TCP_BUFFER_SIZE) {
-                    LENNY_LOG_WARNING("Message that should be sent to client is too long (%d VS %d): `%s`", response.size(), Utils::TCP_BUFFER_SIZE,
-                                      response.c_str())
-                    return;
+                //If there is a response, send it back to the client
+                if (response.has_value()) {
+                    //Check message length
+                    if (response.value().size() > Utils::TCP_BUFFER_SIZE) {
+                        LENNY_LOG_WARNING("Message that should be sent to client is too long (%d VS %d): `%s`", response.value().size(), Utils::TCP_BUFFER_SIZE,
+                                          response.value().c_str())
+                        continue;
+                    }
+
+                    //Send response
+                    const int r_len = send(socket_fd, response.value().c_str(), response.value().size(), 0);
+                    if (r_len == -1)
+                        LENNY_LOG_WARNING("Something went wrong when sending response `%s` to client", response.value().c_str())
+
+                    //Print
+                    if (Utils::TCP_PRINT_MESSAGES)
+                        LENNY_LOG_PRINT(tools::Logger::MAGENTA, "SERVER (response to client): `%s`\n", response.value().c_str())
                 }
-
-                const int r_len = send(socket_fd, response.c_str(), response.size(), 0);
-                if (r_len == -1)
-                    LENNY_LOG_WARNING("Something went wrong when sending response `%s` to client", response.c_str());
-
-                //Print
-                if (Utils::TCP_PRINT_MESSAGES)
-                    LENNY_LOG_PRINT(tools::Logger::MAGENTA, "SERVER (response to client): `%s`\n", response.c_str());
             }
         }
     }

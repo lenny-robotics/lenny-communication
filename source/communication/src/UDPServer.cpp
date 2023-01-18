@@ -16,7 +16,7 @@ namespace lenny::communication {
 
 UDPServer::UDPServer(const int &port) : port(port) {
     //Set f_messageFromClient as test function
-    f_messageFromClient = [](std::string &response, const std::string &message, const std::string &ip, const std::uint16_t &port) -> void {
+    f_messageFromClient = [](std::optional<std::string> &response, const std::string &message, const std::string &ip, const std::uint16_t &port) -> void {
         response = message;  //Echo received message
     };
 }
@@ -35,14 +35,14 @@ bool UDPServer::open() {
     //Initialize Winsock
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != NO_ERROR) {
-        LENNY_LOG_WARNING("Winsock initialization failed");
+        LENNY_LOG_WARNING("Winsock initialization failed")
         return false;
     }
 #endif
 
     //Create socket
     if ((server_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        LENNY_LOG_WARNING("Socket creation failed");
+        LENNY_LOG_WARNING("Socket creation failed")
         return false;
     }
 
@@ -52,7 +52,7 @@ bool UDPServer::open() {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        LENNY_LOG_WARNING("Socket binding failed");
+        LENNY_LOG_WARNING("Socket binding failed")
         return false;
     }
 
@@ -107,21 +107,23 @@ void UDPServer::loop() {
             const std::uint16_t clientPort = ntohs(clientAddress.sin_port);
             if (Utils::UDP_PRINT_MESSAGES)
                 LENNY_LOG_PRINT(tools::Logger::MAGENTA, "SERVER (received from client with ip `%s` and port `%d`): `%s`\n", clientIP.c_str(), clientPort,
-                                message.c_str());
+                                message.c_str())
 
             //Callback
-            std::string response = "";
+            std::optional<std::string> response = std::nullopt;
             if (f_messageFromClient)
                 f_messageFromClient(response, message, clientIP, clientPort);
 
             //Send response to client
-            const int r_val = sendto(server_fd, response.c_str(), response.length(), 0, (const struct sockaddr *)&clientAddress, len);
-            if (r_val == -1)
-                LENNY_LOG_WARNING("Something went wrong when sending response to client with IP `%s` and port `%d`", clientIP.c_str(), clientPort)
+            if (response.has_value()) {
+                const int r_val = sendto(server_fd, response.value().c_str(), response.value().size(), 0, (const struct sockaddr *)&clientAddress, len);
+                if (r_val == -1)
+                    LENNY_LOG_WARNING("Something went wrong when sending response to client with IP `%s` and port `%d`", clientIP.c_str(), clientPort)
 
-            if (Utils::UDP_PRINT_MESSAGES)
-                LENNY_LOG_PRINT(tools::Logger::MAGENTA, "SERVER (response to client with ip `%s` and port `%d`): `%s`\n", clientIP.c_str(), clientPort,
-                                response.c_str());
+                if (Utils::UDP_PRINT_MESSAGES)
+                    LENNY_LOG_PRINT(tools::Logger::MAGENTA, "SERVER (response to client with ip `%s` and port `%d`): `%s`\n", clientIP.c_str(), clientPort,
+                                    response.value().c_str())
+            }
         }
     }
 }

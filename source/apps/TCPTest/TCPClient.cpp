@@ -5,6 +5,8 @@
 
 int main() {
     lenny::communication::Utils::TCP_PRINT_MESSAGES = true;
+    const bool waitForResponse = true;
+
     lenny::communication::TCPClient client("127.0.0.1", 8080);
     client.connect();
     while (client.isConnected()) {
@@ -14,10 +16,10 @@ int main() {
         if (message == "exit")
             break;
         std::optional<std::string> response;
-        client.writeToServer(response, message);
+        client.writeToServer(response, message, waitForResponse);
         if (response.has_value()) {
             std::cout << "Received response from server: " << response.value() << std::endl;
-        } else {
+        } else if (waitForResponse) {
             std::cout << "Received no response from server..." << std::endl;
         }
     }

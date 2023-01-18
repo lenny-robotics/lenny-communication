@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <optional>
 #include <string>
 
 namespace lenny::communication {
@@ -19,7 +20,8 @@ public:
 public:
     const int port;
 
-    typedef std::function<void(std::string& response, const std::string& message)> F_messageFromClient;
+    //We receive `message` from client and optionally send a `response` back
+    typedef std::function<void(std::optional<std::string>& response, const std::string& message)> F_messageFromClient;
     F_messageFromClient f_messageFromClient = nullptr;
 
 private:

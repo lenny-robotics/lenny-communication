@@ -68,7 +68,7 @@ void TCPClient::disconnect() {
 
     //Let server know that connection is closing
     std::optional<std::string> response;
-    writeToServer(response, Utils::TCP_CLIENT_CLOSE_MESSAGE);
+    writeToServer(response, Utils::TCP_CLIENT_CLOSE_MESSAGE, false);
 
     //Close
 #if WIN32
@@ -92,7 +92,7 @@ bool TCPClient::isConnected() const {
     return connected;
 }
 
-void TCPClient::writeToServer(std::optional<std::string>& response, const std::string& message) const {
+void TCPClient::writeToServer(std::optional<std::string>& response, const std::string& message, const bool& waitForResponse) const {
     //Initialize response
     response = std::nullopt;
 
@@ -120,17 +120,19 @@ void TCPClient::writeToServer(std::optional<std::string>& response, const std::s
     }
 
     //Receive response
-    char r_buff[Utils::TCP_BUFFER_SIZE];
-    const int r_len = recv(socket_fd, r_buff, sizeof(r_buff), 0);
-    if (r_len == -1) {
-        LENNY_LOG_WARNING("Something went wrong when reading response from server")
-        return;
-    }
-    response = std::string(r_buff).substr(0, r_len);
+    if (waitForResponse) {
+        char r_buff[Utils::TCP_BUFFER_SIZE];
+        const int r_len = recv(socket_fd, r_buff, sizeof(r_buff), 0);
+        if (r_len == -1) {
+            LENNY_LOG_WARNING("Something went wrong when reading response from server")
+            return;
+        }
+        response = std::string(r_buff).substr(0, r_len);
 
-    //Print response
-    if (Utils::TCP_PRINT_MESSAGES)
-        LENNY_LOG_PRINT(tools::Logger::MAGENTA, "CLIENT (response from server): `%s`\n", response.value().c_str());
+        //Print response
+        if (Utils::TCP_PRINT_MESSAGES)
+            LENNY_LOG_PRINT(tools::Logger::MAGENTA, "CLIENT (response from server): `%s`\n", response.value().c_str());
+    }
 }
 
 }  // namespace lenny::communication

@@ -14,7 +14,7 @@ public:
     void close();
     bool isOpen() const;
 
-    void writeToServer(std::optional<std::string>& response, const std::string& message) const;
+    void writeToServer(std::optional<std::string>& response, const std::string& message, const bool& waitForResponse = true) const;
 
 public:
     const std::string ip;

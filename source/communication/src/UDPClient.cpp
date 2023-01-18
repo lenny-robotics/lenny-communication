@@ -36,13 +36,13 @@ bool UDPClient::open() {
 
     //Create socket
     if ((socket_fd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-        LENNY_LOG_WARNING("Socket creation failed");
+        LENNY_LOG_WARNING("Socket creation failed")
         return false;
     }
 
     //Wrap up
     opened = true;
-    LENNY_LOG_INFO("UDPClient successfully opened with ip `%s` and port `%d`", ip.c_str(), port);
+    LENNY_LOG_INFO("UDPClient successfully opened with ip `%s` and port `%d`", ip.c_str(), port)
     return true;
 }
 
@@ -61,15 +61,15 @@ void UDPClient::close() {
     ::close(socket_fd);
 #endif
     opened = false;
-    LENNY_LOG_INFO("UDPClient successfully closed with ip `%s` and port `%d`", ip.c_str(), port);
+    LENNY_LOG_INFO("UDPClient successfully closed with ip `%s` and port `%d`", ip.c_str(), port)
 }
 
 bool UDPClient::isOpen() const {
     return opened;
 }
 
-void UDPClient::writeToServer(std::optional<std::string>& response, const std::string& message) const {
-    //Initialize reponse
+void UDPClient::writeToServer(std::optional<std::string>& response, const std::string& message, const bool& waitForResponse) const {
+    //Initialize response
     response = std::nullopt;
 
     //Perform checks
@@ -79,20 +79,20 @@ void UDPClient::writeToServer(std::optional<std::string>& response, const std::s
     }
 
     if (message.size() > Utils::UDP_BUFFER_SIZE) {
-        LENNY_LOG_WARNING("Message that should be sent to server is too long (%d VS %d): `%s`", message.size(), Utils::UDP_BUFFER_SIZE, message.c_str());
+        LENNY_LOG_WARNING("Message that should be sent to server is too long (%d VS %d): `%s`", message.size(), Utils::UDP_BUFFER_SIZE, message.c_str())
         return;
     }
 
     //Print message
     if (Utils::UDP_PRINT_MESSAGES)
-        LENNY_LOG_PRINT(tools::Logger::MAGENTA, "CLIENT (sent to server): `%s`\n", message.c_str());
+        LENNY_LOG_PRINT(tools::Logger::MAGENTA, "CLIENT (sent to server): `%s`\n", message.c_str())
 
     //Gather address
     struct sockaddr_in serv_addr;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(port);
     if (inet_pton(AF_INET, ip.c_str(), &serv_addr.sin_addr) <= 0) {
-        LENNY_LOG_WARNING("Invalid IP address `%s`", ip.c_str());
+        LENNY_LOG_WARNING("Invalid IP address `%s`", ip.c_str())
         return;
     }
     socklen_t len = sizeof(serv_addr);
@@ -105,17 +105,19 @@ void UDPClient::writeToServer(std::optional<std::string>& response, const std::s
     }
 
     //Receive response
-    char r_buff[Utils::UDP_BUFFER_SIZE];
-    const int r_len = recvfrom(socket_fd, r_buff, Utils::UDP_BUFFER_SIZE, 0, (struct sockaddr*)&serv_addr, &len);
-    if (r_len == -1) {
-        LENNY_LOG_WARNING("Something went wrong when receiving response from server")
-        return;
-    }
-    response = std::string(r_buff).substr(0, r_len);
+    if (waitForResponse) {
+        char r_buff[Utils::UDP_BUFFER_SIZE];
+        const int r_len = recvfrom(socket_fd, r_buff, Utils::UDP_BUFFER_SIZE, 0, (struct sockaddr*)&serv_addr, &len);
+        if (r_len == -1) {
+            LENNY_LOG_WARNING("Something went wrong when receiving response from server")
+            return;
+        }
+        response = std::string(r_buff).substr(0, r_len);
 
-    //Print response
-    if (Utils::UDP_PRINT_MESSAGES)
-        LENNY_LOG_PRINT(tools::Logger::MAGENTA, "CLIENT (response from server): `%s`\n", response.value().c_str());
+        //Print response
+        if (Utils::UDP_PRINT_MESSAGES)
+            LENNY_LOG_PRINT(tools::Logger::MAGENTA, "CLIENT (response from server): `%s`\n", response.value().c_str())
+    }
 }
 
 }  // namespace lenny::communication
